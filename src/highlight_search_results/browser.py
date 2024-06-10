@@ -30,45 +30,71 @@
 # Any modifications to this file must keep this entire header intact.
 
 import unicodedata
+import re
 from typing import List, Optional
 
 from aqt.browser import Browser
+
+from aqt import mw
 from aqt.qt import QKeySequence, QShortcut, QMenu
+
+from .libaddon.platform import checkAnkiVersion
 
 from .config import config
 from .search import SearchTokenizer, QueryLanguageVersion
 from .webview import clear_highlights, highlight_terms
 
+from anki.consts import MODEL_CLOZE
+
 _SEARCH_PLACEHOLDER: Optional[str]
-_SEARCH_PLACEHOLDER = None
-_query_language_version = QueryLanguageVersion.ANKI2124
+
+if checkAnkiVersion("2.1.41"):
+    # 2.1.41+ has no hard-coded place-holder text
+    _SEARCH_PLACEHOLDER = None
+else:
+    try:
+        from aqt.utils import tr, TR
+
+        _SEARCH_PLACEHOLDER = tr(TR.BROWSING_TYPE_HERE_TO_SEARCH)  # type: ignore
+    except Exception:
+        from anki.lang import _
+
+        _SEARCH_PLACEHOLDER = _("<type here to search; hit enter to show current deck>")
+
+if checkAnkiVersion("2.1.24"):
+    _query_language_version = QueryLanguageVersion.ANKI2124
+else:
+    _query_language_version = QueryLanguageVersion.ANKI2100
 
 _search_tokenizer = SearchTokenizer(_query_language_version)
-
 
 def on_browser_did_change_row(
     browser: Browser, current: Optional[int] = None, previous: Optional[int] = None
 ):
     """
-    Highlight search results in Editor pane on searching
+    Highlight cloze deletions in Editor pane on selecting a cloze card
     """
-    if not hasattr(browser, "_highlight_results") or not browser._highlight_results:
+    card_id = browser.selected_cards()[0]
+    card = mw.col.get_card(card_id)
+    note = card.note()
+
+    if note.note_type()["type"] != MODEL_CLOZE:
+        return
+    
+    if not note.cloze_numbers_in_fields():
         return
 
-    search_text = browser.form.searchEdit.lineEdit().text()
+    cloze_number = card.ord + 1
+    cloze_list = []
 
-    search_text = unicodedata.normalize("NFC", search_text)
+    for field in note.fields:
+        cloze_deletions = re.findall(r"(\{\{c(\d+)::(.+?)(::(.*?))?\}\})", field, re.DOTALL)
 
-    if not search_text or search_text == _SEARCH_PLACEHOLDER:
-        return
+        for cloze in cloze_deletions:
+            if int(cloze[1]) == cloze_number:
+                cloze_list.append(cloze[0])
 
-    tokens = _search_tokenizer.tokenize(search_text)
-    searchable_tokens = _search_tokenizer.get_searchable_tokens(tokens)
-
-    if not searchable_tokens:
-        return
-
-    highlight_terms(browser.editor.web, searchable_tokens)
+    highlight_terms(browser.editor.web, cloze_list)
 
 
 def select_all_matching_cards(browser: Browser):
@@ -151,7 +177,7 @@ def on_browser_menus_did_init(browser: Browser):
 
     menu.addSeparator()
 
-    a = menu.addAction("Highlight Search Results")
+    a = menu.addAction("Highlight Cloze Deletions")
     a.setCheckable(True)
     a.setChecked(browser._highlight_results)
     a.setShortcut(QKeySequence(config["local"]["hotkey_toggle_highlights"]))
