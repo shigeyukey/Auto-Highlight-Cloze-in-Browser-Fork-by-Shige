@@ -66,9 +66,12 @@ def handle_find_result(webview: AnkiWebView, term: str, matches: QWebEngineFindT
         # Q. Why does it need loops?
             # 1. There is no function to select it in Qt. Highlighted in sequence, so need to update it until it reaches 1.
             # 2. Auto-scroll to the highlighted position, so if the text below is highlighted, the card is difficult to edit.
-    if matches.activeMatch() != 1 and count < MAX_NUMBER_OF_ITERATIONS:
-        # NOTE :When the number of Cloze is too many, flickering will occur.
-        webview.findText(term, resultCallback=lambda matches: handle_find_result(webview, term, matches, count+1))
+    if hasattr(matches, 'activeMatch'):
+        if matches.activeMatch() != 1 and count < MAX_NUMBER_OF_ITERATIONS:
+            # NOTE :When the number of Cloze is too many, flickering will occur.
+            webview.findText(term, resultCallback=lambda matches: handle_find_result(webview, term, matches, count+1))
+    else:
+        pass
 
 def highlight_terms(webview: AnkiWebView, terms: List[str]):
     # Highlight by "QWebEngineView.findText"
