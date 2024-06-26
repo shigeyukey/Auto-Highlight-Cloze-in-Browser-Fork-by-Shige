@@ -12,10 +12,10 @@ def create_ankiaddon():
     zip_name = f'addon_{today}.zip'
 
     # 除外するﾌｫﾙﾀﾞと拡張子とﾌｧｲﾙ名
-    exclude_dirs = ['__pycache__', 'bundle03', '.vscode',"buckup_01"]
+    exclude_dirs = ['__pycache__', 'bundle03', '.vscode',"buckup_01",".git"]
     # exclude_dirs = ['__pycache__', 'bundle03', 'user_files', '.vscode']
-    exclude_exts = ['.ankiaddon']
-    exclude_files = ['meta.json', zip_name, "template_00.md"]
+    exclude_exts = ['.ankiaddon',]
+    exclude_files = ['meta.json', zip_name, "template_00.md",".gitignore"]
 
     # Zipﾌｧｲﾙを作成
     with zipfile.ZipFile(zip_name, 'w', zipfile.ZIP_DEFLATED) as zipf:
